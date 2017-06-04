@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	Version = "0.0.1"
 	BaseApi = ""
 	Token   = ""
 	Region  = ""
@@ -50,7 +51,6 @@ type ApiItem struct {
 }
 
 func main() {
-
 	hostname, _ := os.Hostname()
 
 	var _url = flag.String("url", "", "psm server url")
@@ -65,11 +65,13 @@ func main() {
 	Region = *_region
 
 	if len(BaseApi) == 0 || len(*_help) > 0 {
+		fmt.Println("phpservermon Client for go.\nhttps://github.com/vus520/psm_go_client\nversion " + Version)
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
 
 	MoniorStart()
+
 	wg.Wait()
 }
 
@@ -158,8 +160,6 @@ func MoniorItem(ServerId string) {
 			latency, status_msg, status_new := MonitorWebsite(Item.Uri, timeout, Item.Partern, Maxretry)
 			api := fmt.Sprintf("%s/?mod=api&action=update&server_id=%s&status=%v&error=%s&latency=%f&region=%s&token=%s",
 				BaseApi, ServerId, status_new, status_msg, latency, Region, token())
-
-			fmt.Println(api)
 
 			_, err := curl(api, 10)
 			if err != nil {
