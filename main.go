@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -21,7 +22,7 @@ var (
 	BaseApi = ""
 	Token   = ""
 	Region  = ""
-	Support = []string{"website"}
+	Support = []string{"website", "service"}
 	wg      sync.WaitGroup
 )
 
@@ -155,16 +156,25 @@ func MoniorItem(ServerId string) {
 			Maxretry = 2
 		}
 
+		var (
+			latency    float64
+			status_msg string
+			status_new int
+		)
+
 		switch Item.Type {
 		case "website":
-			latency, status_msg, status_new := MonitorWebsite(Item.Uri, timeout, Item.Partern, Maxretry)
-			api := fmt.Sprintf("%s/?mod=api&action=update&server_id=%s&status=%v&error=%s&latency=%f&region=%s&token=%s",
-				BaseApi, ServerId, status_new, status_msg, latency, Region, token())
+			latency, status_msg, status_new = MonitorWebsite(Item.Uri, timeout, Item.Partern, Maxretry)
+		case "service":
+			latency, status_msg, status_new = MonitorService(Item.Uri, Item.Port, Maxretry)
+		}
 
-			_, err := curl(api, 10)
-			if err != nil {
-				fmt.Println("api callback error:", api, err.Error())
-			}
+		api := fmt.Sprintf("%s/?mod=api&action=update&server_id=%s&status=%v&error=%s&latency=%f&region=%s&token=%s",
+			BaseApi, ServerId, status_new, status_msg, latency, Region, token())
+
+		_, err = curl(api, 10)
+		if err != nil {
+			fmt.Println("api callback error:", api, err.Error())
 		}
 	}
 }
@@ -203,6 +213,39 @@ func MonitorWebsite(url string, timeout int, partern string, retry int) (latency
 	if !result && retry > 1 {
 		time.Sleep(1 * time.Second)
 		return MonitorWebsite(url, timeout, partern, retry-1)
+	}
+
+	status_new = 1
+	if !result {
+		status_new = 0
+	}
+
+	return latency, status, status_new
+}
+
+func MonitorService(ip string, port string, retry int) (latency float64, status string, status_new int) {
+	latency = 0
+	status = "OK" //[]string{"ok", "timeout", "miss partern"}
+	result := true
+
+	s := time.Now()
+
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", ip, port), 10*time.Second)
+	if err != nil {
+		status = err.Error()
+		result = false
+	} else {
+		defer conn.Close()
+	}
+
+	e := time.Now()
+	latency = float64(e.UnixNano()-s.UnixNano()) / 1000000000
+
+	fmt.Printf("IP: %s, port:%s, Status: %s, Latency:%f\n", ip, port, status, latency)
+
+	if !result && retry > 1 {
+		time.Sleep(1 * time.Second)
+		return MonitorService(ip, port, retry-1)
 	}
 
 	status_new = 1
