@@ -159,6 +159,8 @@ func MoniorItem(ServerId string) {
 			api := fmt.Sprintf("%s/?mod=api&action=update&server_id=%s&status=%v&error=%s&latency=%f&region=%s&token=%s",
 				BaseApi, ServerId, status_new, status_msg, latency, Region, token())
 
+			fmt.Println(api)
+
 			_, err := curl(api, 10)
 			if err != nil {
 				fmt.Println("api callback error:", api, err.Error())
@@ -167,10 +169,10 @@ func MoniorItem(ServerId string) {
 	}
 }
 
-func MonitorWebsite(url string, timeout int, partern string, retry int) (latency float64, status string, result bool) {
+func MonitorWebsite(url string, timeout int, partern string, retry int) (latency float64, status string, status_new int) {
 	latency = 0
 	status = "OK" //[]string{"ok", "timeout", "miss partern"}
-	result = true
+	result := true
 
 	s := time.Now()
 
@@ -203,7 +205,12 @@ func MonitorWebsite(url string, timeout int, partern string, retry int) (latency
 		return MonitorWebsite(url, timeout, partern, retry-1)
 	}
 
-	return latency, status, result
+	status_new = 1
+	if !result {
+		status_new = 0
+	}
+
+	return latency, status, status_new
 }
 
 func Contains(str string, partern string) bool {
