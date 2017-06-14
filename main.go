@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	Version = "0.0.3"
+	Version = "0.0.4"
 	BaseApi = ""
 	Token   = ""
 	Region  = ""
 	Support = []string{"website", "service"}
+	Header  = map[string]string{}
 	wg      sync.WaitGroup
 )
 
@@ -48,7 +49,9 @@ type ApiItem struct {
 	Timeout  string `json:"timeout"`
 	Username string `json:"website_username"`
 	Password string `json:"website_password"`
-	Maxretry string `jsin:"max_retry"`
+	Maxretry string `json:"max_retry"`
+	HeadName string `json:"header_name"`
+	HeadVal  string `json:"header_value"`
 }
 
 func main() {
@@ -81,7 +84,7 @@ func MoniorStart() {
 
 	fmt.Println("Fetch apilist from " + url)
 
-	data, err := curl(url, 60)
+	data, err := curl(url, 60, Header)
 	if err != nil {
 		fmt.Println("can't format json result: " + err.Error())
 		fmt.Println(url)
@@ -124,7 +127,7 @@ func MoniorItem(ServerId string) {
 
 	url := fmt.Sprintf("%s/?mod=api&action=server&server_id=%s&token=%s", BaseApi, ServerId, token())
 
-	data, err := curl(url, 60)
+	data, err := curl(url, 60, Header)
 
 	if err != nil {
 		panic(err.Error())
@@ -145,8 +148,9 @@ func MoniorItem(ServerId string) {
 		fmt.Println(data)
 		return
 	} else {
+		//把公用参数提出来统一处理
 		timeout, err := strconv.Atoi(Item.Timeout)
-		if err != nil {
+		if err != nil || timeout < 1 || timeout > 100 {
 			timeout = 20
 		}
 
@@ -164,29 +168,39 @@ func MoniorItem(ServerId string) {
 
 		switch Item.Type {
 		case "website":
-			latency, status_msg, status_new = MonitorWebsite(Item.Uri, timeout, Item.Partern, Maxretry)
+			latency, status_msg, status_new = MonitorWebsite(Item, timeout, Maxretry)
 		case "service":
-			latency, status_msg, status_new = MonitorService(Item.Uri, Item.Port, Maxretry)
+			latency, status_msg, status_new = MonitorService(Item, timeout, Maxretry)
 		}
 
 		api := fmt.Sprintf("%s/?mod=api&action=update&server_id=%s&status=%v&error=%s&latency=%f&region=%s&token=%s",
 			BaseApi, ServerId, status_new, status_msg, latency, Region, token())
 
-		_, err = curl(api, 10)
+		_, err = curl(api, 10, Header)
 		if err != nil {
 			fmt.Println("api callback error:", api, err.Error())
 		}
 	}
 }
 
-func MonitorWebsite(url string, timeout int, partern string, retry int) (latency float64, status string, status_new int) {
+func MonitorWebsite(item ApiItem, timeout int, retry int) (latency float64, status string, status_new int) {
 	latency = 0
 	status = "OK" //[]string{"ok", "timeout", "miss partern"}
 	result := true
+	partern := item.Partern
 
 	s := time.Now()
 
-	data, err := curl(url, time.Duration(timeout))
+	//URL监控有时候需要设置头信息，则复制全局头信息，并添加监控项的头信息
+	header := map[string]string{}
+	for k, v := range Header {
+		header[k] = v
+	}
+	if item.HeadName != "" {
+		header[item.HeadName] = item.HeadVal
+	}
+
+	data, err := curl(item.Uri, time.Duration(timeout), header)
 	if err != nil {
 		status = err.Error()
 		result = false
@@ -208,11 +222,11 @@ func MonitorWebsite(url string, timeout int, partern string, retry int) (latency
 
 	//@todo if latency > float64(timeout) , status = "Timeout"
 
-	fmt.Printf("URI: %s, data:%d, Status: %s, Latency:%f\n", url, len(data), status, latency)
+	fmt.Printf("URI: %s, data:%d, Status: %s, Latency:%f\n", item.Uri, len(data), status, latency)
 
 	if !result && retry > 1 {
 		time.Sleep(1 * time.Second)
-		return MonitorWebsite(url, timeout, partern, retry-1)
+		return MonitorWebsite(item, timeout, retry-1)
 	}
 
 	status_new = 1
@@ -223,14 +237,14 @@ func MonitorWebsite(url string, timeout int, partern string, retry int) (latency
 	return latency, status, status_new
 }
 
-func MonitorService(ip string, port string, retry int) (latency float64, status string, status_new int) {
+func MonitorService(item ApiItem, timeout int, retry int) (latency float64, status string, status_new int) {
 	latency = 0
 	status = "OK" //[]string{"ok", "timeout", "miss partern"}
 	result := true
 
 	s := time.Now()
 
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", ip, port), 10*time.Second)
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", item.Uri, item.Port), time.Duration(timeout)*time.Second)
 	if err != nil {
 		status = err.Error()
 		result = false
@@ -241,11 +255,11 @@ func MonitorService(ip string, port string, retry int) (latency float64, status 
 	e := time.Now()
 	latency = float64(e.UnixNano()-s.UnixNano()) / 1000000000
 
-	fmt.Printf("IP: %s, port:%s, Status: %s, Latency:%f\n", ip, port, status, latency)
+	fmt.Printf("IP: %s, port:%s, Status: %s, Latency:%f\n", item.Uri, item.Port, status, latency)
 
 	if !result && retry > 1 {
 		time.Sleep(1 * time.Second)
-		return MonitorService(ip, port, retry-1)
+		return MonitorService(item, timeout, retry-1)
 	}
 
 	status_new = 1
@@ -299,14 +313,28 @@ func inSlice(val string, slice []string) bool {
 	return false
 }
 
-func curl(url string, TimeOut time.Duration) (string, error) {
+func curl(url string, TimeOut time.Duration, header map[string]string) (string, error) {
 	timeout := time.Duration(TimeOut * time.Second)
 
 	client := http.Client{
 		Timeout:       timeout,
 		CheckRedirect: redirectPolicy,
 	}
-	resp, err := client.Get(url)
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	//Pay attention that in http.Request header "Host" can not be set via Set method
+	//but can be set directly:
+	//req.Host = "domain.tld":
+	for k, v := range header {
+		if k == "Host" {
+			req.Host = v
+		} else {
+			req.Header.Set(k, v)
+		}
+	}
+
+	resp, err := client.Do(req)
 
 	if err != nil {
 		return "", err
@@ -314,7 +342,7 @@ func curl(url string, TimeOut time.Duration) (string, error) {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 500 {
+	if resp.StatusCode >= 400 {
 		return "", errors.New(resp.Status)
 	}
 
