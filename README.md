@@ -16,6 +16,12 @@ https://github.com/nutsteam/phpservermon/tree/nutsmobi#mutiple-region
 step 2, add cron
 ===================
 
+download bin file from github
+```
+wget https://github.com/vus520/psm_go_client/raw/master/psm_api_go_linux  -O /usr/local/bin/psm_api_go && chmod +x /usr/local/bin/psm_api_go
+wget https://github.com/vus520/psm_go_client/raw/master/psm_api_go_maxosx -O /usr/local/bin/psm_api_go && chmod +x /usr/local/bin/psm_api_go
+```
+
 php version:
 ```shell
 php cron/status.cron.php
@@ -44,6 +50,12 @@ https://github.com/nutsteam/phpservermon/tree/nutsmobi#mutiple-region
 
 step 2, 替换计划任务
 ===================
+
+下载对应的二进制包
+```
+wget https://github.com/vus520/psm_go_client/raw/master/psm_api_go_linux  -O /usr/local/bin/psm_api_go && chmod +x /usr/local/bin/psm_api_go
+wget https://github.com/vus520/psm_go_client/raw/master/psm_api_go_maxosx -O /usr/local/bin/psm_api_go && chmod +x /usr/local/bin/psm_api_go
+```
 
 php 版本的任务:
 ```shell
