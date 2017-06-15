@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	Version = "0.0.5"
+	Version = "0.0.6"
 	BaseApi = ""
 	Token   = ""
 	Region  = ""
@@ -52,6 +52,7 @@ type ApiItem struct {
 	Maxretry string `json:"max_retry"`
 	HeadName string `json:"header_name"`
 	HeadVal  string `json:"header_value"`
+	Headers  string `json:"headers"`
 }
 
 func main() {
@@ -198,8 +199,16 @@ func MonitorWebsite(item ApiItem, timeout int, retry int) (latency float64, stat
 	for k, v := range Header {
 		header[k] = v
 	}
-	if item.HeadName != "" {
-		header[item.HeadName] = item.HeadVal
+	if len(item.Headers) > 0 {
+		s := strings.Split(item.Headers, ";")
+		for _, v := range s {
+			ss := strings.Split(v, ":")
+
+			if len(ss) < 2 {
+				continue
+			}
+			header[strings.TrimSpace(ss[0])] = strings.TrimSpace(ss[1])
+		}
 	}
 
 	data, err := curl(item.Uri, time.Duration(timeout), header)
