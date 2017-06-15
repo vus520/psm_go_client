@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	Version = "0.0.4"
+	Version = "0.0.5"
 	BaseApi = ""
 	Token   = ""
 	Region  = ""
@@ -73,6 +73,8 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
+
+	Header["User-Agent"] = "Mozilla/5.0 (phpservermon go; " + Region + "; " + Version + ") AppleWebKit/537.36 (KHTML, like Gecko)"
 
 	MoniorStart()
 
