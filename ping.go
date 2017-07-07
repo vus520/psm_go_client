@@ -15,11 +15,10 @@ var (
 )
 
 func main() {
-
-	var _ip = flag.String("ip", "", "指定要ping的IP或者域名")
-	var _pt = flag.String("port", "80", "指定要telnet的端口")
-	var _tp = flag.String("t", "tcp", "[TCP | UDP]")
-	var _he = flag.String("help", "", "show help message")
+	var _ip = flag.String("ip", "", "指定要连接的IP或者域名")
+	var _pt = flag.String("port", "80", "指定要尝试连接的端口")
+	var _tp = flag.String("t", "tcp", "端口类型 [TCP|UDP]")
+	var _he = flag.String("help", "", "显示帮助信息")
 
 	flag.Parse()
 
