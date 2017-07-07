@@ -5,13 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
-	"sync"
 	"time"
-)
-
-var (
-	wg sync.WaitGroup
 )
 
 func main() {
@@ -29,12 +23,7 @@ func main() {
 	}
 
 	for {
-		wg.Add(2)
 		go MonitorService(*_ip, *_pt, *_tp, 0, 10)
-		go MonitorService("baidu.com", "80", "tcp", 0, 10)
-		wg.Wait()
-
-		fmt.Println(strings.Repeat("-", 100))
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -51,14 +40,13 @@ func MonitorService(ip string, port string, tcporudp string, timeout int, retry 
 		status = err.Error()
 		result = false
 	} else {
-		defer wg.Done()
 		defer conn.Close()
 	}
 
 	e := time.Now()
 	latency = float64(e.UnixNano()-s.UnixNano()) / 1000000000
 
-	fmt.Printf(`{"Time":"%s", "IP":"%s", "port":"%s", "Type":"%s", "Status":"%s", "Latency":"%f"}%s`,
+	fmt.Printf(`{"Time":"%s", "IP":"%s", "Port":"%s", "Type":"%s", "Status":"%s", "Latency":"%f"}%s`,
 		time.Now().Format("2006-01-02 15:04:05"), ip, port, tcporudp, status, latency, "\n")
 
 	if !result && retry > 1 {
