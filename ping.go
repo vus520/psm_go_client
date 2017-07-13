@@ -16,6 +16,10 @@ func main() {
 
 	flag.Parse()
 
+	if len(os.Args) > 1 {
+		*_ip = os.Args[1]
+	}
+
 	if len(*_ip) == 0 || len(*_he) > 0 {
 		fmt.Println("一个简单的网络连接对比测试工具")
 		flag.PrintDefaults()
