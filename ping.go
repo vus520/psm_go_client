@@ -57,7 +57,7 @@ func MonitorService(ip string, port string, tcporudp string, timeout int, retry 
 	latency = float64(e.UnixNano()-s.UnixNano()) / 1000000000
 
 	log := fmt.Sprintf(`{"date":"%s", "ip":"%s", "port":%s, "type":"%s", "status":"%s", "latency":%f}`,
-		time.Now().Format("2006-01-02T15:04:05+08:00"), ip, port, tcporudp, status, latency)
+		s.Format("2006-01-02T15:04:05+08:00"), ip, port, tcporudp, status, latency)
 
 	if ES != "" {
 		go exec.Command("/usr/bin/curl", "-XPOST", ES, "--data-binary", log).Start()
